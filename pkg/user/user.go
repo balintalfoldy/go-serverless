@@ -27,9 +27,9 @@ var (
 )
 
 type User struct {
-	Email     string `json:"email"`
-	FirstName string `json:"firstName"`
-	LastName  string `json:"lastName"`
+	Email     string `dynamodbav:"email"`
+	FirstName string `dynamodbav:"firstName"`
+	LastName  string `dynamodbav:"lastName"`
 }
 
 func FetchUser(email string, tableName string, ddbclient *dynamodb.Client) (*User, error) {
@@ -43,12 +43,14 @@ func FetchUser(email string, tableName string, ddbclient *dynamodb.Client) (*Use
 
 	result, err := ddbclient.GetItem(context.TODO(), input)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorFailedToFetchRecord, err.Error())
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
 	item := new(User)
 	err = attributevalue.UnmarshalMap(result.Item, item)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorFailedToUnmarshalRecord, err.Error())
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 	return item, nil
@@ -61,12 +63,14 @@ func FetchUsers(tableName string, ddbclient *dynamodb.Client) (*[]User, error) {
 	}
 	result, err := ddbclient.Scan(context.TODO(), input)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorFailedToFetchRecord, err.Error())
 		return nil, errors.New(ErrorFailedToFetchRecord)
 	}
 
 	item := new([]User)
 	err = attributevalue.UnmarshalListOfMaps(result.Items, item)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorFailedToUnmarshalRecord, err.Error())
 		return nil, errors.New(ErrorFailedToUnmarshalRecord)
 	}
 	return item, nil
@@ -89,6 +93,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, ddbclient *
 
 	item, err := attributevalue.MarshalMap(u)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorCouldNotMarshalItem, err.Error())
 		return nil, errors.New(ErrorCouldNotMarshalItem)
 	}
 
@@ -99,6 +104,7 @@ func CreateUser(req events.APIGatewayProxyRequest, tableName string, ddbclient *
 
 	_, err = ddbclient.PutItem(context.TODO(), input)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorCouldNotPutItem, err.Error())
 		return nil, errors.New(ErrorCouldNotPutItem)
 	}
 
@@ -110,10 +116,12 @@ func UpdateUser(req events.APIGatewayProxyRequest, tableName string, ddbclient *
 
 	var u User
 
+	email := req.QueryStringParameters["email"]
+
 	if err := json.Unmarshal([]byte(req.Body), &u); err != nil {
 		return nil, errors.New(ErrorInvalidUserData)
 	}
-	currentUser, _ := FetchUser(u.Email, tableName, ddbclient)
+	currentUser, _ := FetchUser(email, tableName, ddbclient)
 	if currentUser == nil || len(currentUser.Email) == 0 {
 		return nil, errors.New(ErrorUserDoesNotExist)
 	}
@@ -121,22 +129,21 @@ func UpdateUser(req events.APIGatewayProxyRequest, tableName string, ddbclient *
 	input := &dynamodb.UpdateItemInput{
 		TableName: aws.String(tableName),
 		Key: map[string]types.AttributeValue{
-			"email": &types.AttributeValueMemberS{Value: u.Email},
+			"email": &types.AttributeValueMemberS{Value: email},
 		},
 		ExpressionAttributeValues: map[string]types.AttributeValue{
-			":em": &types.AttributeValueMemberS{Value: u.Email},
 			":fn": &types.AttributeValueMemberS{Value: u.FirstName},
 			":ln": &types.AttributeValueMemberS{Value: u.LastName},
 		},
 		ExpressionAttributeNames: map[string]string{
-			"#em": "email",
 			"#fn": "firstName",
 			"#ln": "lastName",
 		},
-		UpdateExpression: aws.String(fmt.Sprintf("set #em = :em, #fn = :fn, #ln = :ln")),
+		UpdateExpression: aws.String(fmt.Sprintf("set #fn = :fn, #ln = :ln")),
 	}
 	_, err := ddbclient.UpdateItem(context.TODO(), input)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorCouldNotPutItem, err.Error())
 		return nil, errors.New(ErrorCouldNotPutItem)
 	}
 	return &u, nil
@@ -154,6 +161,7 @@ func DeleteUser(req events.APIGatewayProxyRequest, tableName string, ddbclient *
 	}
 	_, err := ddbclient.DeleteItem(context.TODO(), input)
 	if err != nil {
+		fmt.Printf("Error: %s - %s", ErrorCouldNotDeleteItem, err.Error())
 		return errors.New(ErrorCouldNotDeleteItem)
 	}
 

@@ -14,7 +14,7 @@ import (
 
 var ddbclient *dynamodb.Client
 
-const tableName = "GoServerlessTable"
+var tableName string
 
 func LambdaHandler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
 	switch req.HTTPMethod {
@@ -38,6 +38,8 @@ func main() {
 		log.Fatal(err)
 	}
 	ddbclient = dynamodb.NewFromConfig(cfg)
+
+	tableName = os.Getenv("DB_NAME")
 
 	lambda.Start(LambdaHandler)
 }

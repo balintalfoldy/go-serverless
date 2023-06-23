@@ -1,0 +1,58 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: Serverless Go API - Amazon API Gateway to AWS Lambda to Amazon DynamoDB
+
+Globals:
+  Function:
+    Timeout: 5
+
+Parameters:
+  TableName:
+    Type: String
+    Description: DynamoDB table name
+    Default: GoServerlessTable
+
+Resources:
+  GoServerlessFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: GoServerless
+      CodeUri: cmd/
+      Handler: main
+      Runtime: go1.x
+      Architectures:
+        - x86_64
+      Policies:
+        DynamoDBCrudPolicy:
+          TableName: !Ref DynamoDBTable
+      Events:
+        ApiEvent:
+          Type: Api
+          Properties:
+            Path: /users
+            Method: ANY
+      Environment:
+        Variables:
+          DB_NAME: !Ref TableName
+  DynamoDBTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: !Ref TableName
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+      ProvisionedThroughput:
+        ReadCapacityUnits: 5
+        WriteCapacityUnits: 5
+
+Outputs:
+  EndpointUrl:
+    Description: "HTTP REST endpoint URL"
+    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
+
+  TodoServiceFunction:
+    Description: "First Lambda Function ARN"
+    Value: !GetAtt GoServerlessFunction.Arn

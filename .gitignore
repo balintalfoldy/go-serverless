@@ -19,3 +19,5 @@ build/
 
 # Go workspace file
 go.work
+
+.aws-sam/
