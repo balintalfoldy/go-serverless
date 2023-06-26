@@ -17,6 +17,7 @@ var ddbclient *dynamodb.Client
 var tableName string
 
 func LambdaHandler(ctx context.Context, req events.APIGatewayProxyRequest) (*events.APIGatewayProxyResponse, error) {
+	log.Println("Lambda function invoked...")
 	switch req.HTTPMethod {
 	case "GET":
 		return handlers.GetUser(req, tableName, ddbclient)

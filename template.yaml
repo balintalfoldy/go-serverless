@@ -3,25 +3,47 @@ Transform: AWS::Serverless-2016-10-31
 Description: Serverless Go API - Amazon API Gateway to AWS Lambda to Amazon DynamoDB
 
 Globals:
+  Api:
+    OpenApiVersion: 3.0.1
   Function:
-    Timeout: 5
+    Timeout: 60
+    MemorySize: 256
 
 Parameters:
-  TableName:
+  ProjectName:
     Type: String
-    Description: DynamoDB table name
-    Default: GoServerlessTable
+    Description: (Required) The name of the project
+    MinLength: 3
+    MaxLength: 50
+    AllowedPattern: ^[A-Za-z_-]+$
+    ConstraintDescription: "Required. Can be characters, hyphen, and underscore only. No numbers or special characters allowed."
+  StageName:
+    Type: String
+    Default: dev
+    Description: Enter dev, prod. Default is dev.
+    AllowedValues:
+      - dev
+      - prod
 
 Resources:
-  GoServerlessFunction:
+  UsersRestApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      Name: !Sub "${ProjectName}_UsersAPI_${StageName}"
+      StageName: !Ref StageName
+
+  UsersFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: GoServerless
+      FunctionName: !Sub "${ProjectName}_UsersCRUD_${StageName}"
       CodeUri: cmd/
       Handler: main
       Runtime: go1.x
       Architectures:
         - x86_64
+      AutoPublishAlias: live
+      DeploymentPreference:
+        Type: AllAtOnce
       Policies:
         DynamoDBCrudPolicy:
           TableName: !Ref DynamoDBTable
@@ -29,15 +51,17 @@ Resources:
         ApiEvent:
           Type: Api
           Properties:
-            Path: /users
+            Path: /
             Method: ANY
+            RestApiId: !Ref UsersRestApi
       Environment:
         Variables:
-          DB_NAME: !Ref TableName
+          DB_NAME: !Ref DynamoDBTable
+
   DynamoDBTable:
     Type: AWS::DynamoDB::Table
     Properties:
-      TableName: !Ref TableName
+      TableName: !Sub "${ProjectName}_Table_${StageName}"
       AttributeDefinitions:
         - AttributeName: email
           AttributeType: S
@@ -51,8 +75,8 @@ Resources:
 Outputs:
   EndpointUrl:
     Description: "HTTP REST endpoint URL"
-    Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/dev"
+    Value: !Sub "https://${UsersRestApi}.execute-api.${AWS::Region}.amazonaws.com/${StageName}/"
 
-  TodoServiceFunction:
+  LambdaFunction:
     Description: "First Lambda Function ARN"
-    Value: !GetAtt GoServerlessFunction.Arn
+    Value: !GetAtt UsersFunction.Arn

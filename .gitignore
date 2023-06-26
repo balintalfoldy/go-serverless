@@ -21,3 +21,5 @@ build/
 go.work
 
 .aws-sam/
+
+.vscode/

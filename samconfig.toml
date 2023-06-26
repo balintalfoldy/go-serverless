@@ -4,8 +4,9 @@ stack_name = "sam-goserverless"
 resolve_s3 = true
 s3_prefix = "sam-goserverless"
 region = "eu-central-1"
+profile = "ddc-dev-ab"
 confirm_changeset = true
 capabilities = "CAPABILITY_IAM"
-parameter_overrides = "TableName=\"GoServerlessTable\""
+disable_rollback = true
+parameter_overrides = "ProjectName=\"GoServerless\" StageName=\"dev\""
 image_repositories = []
-profile = "ddc-dev-ab"
